@@ -1,3 +1,5 @@
+// Äldre datafiler (window.TOPICS) räknas till kursen Projektledning 55 YHP
+if(window.TOPICS&&window.TOPICS.length){COURSES[0].topics.push(...window.TOPICS);window.TOPICS=[];}
 const A=document.getElementById('app');
 const h=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const nq=C=>C.topics.reduce((a,t)=>a+t.q.length,0);
