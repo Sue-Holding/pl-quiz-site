@@ -6,3 +6,5 @@ window.COURSES=[
 ];
 // Används av datafilerna: addTopics("kurs-id", [ämnen])
 window.addTopics=function(id,arr){const c=COURSES.find(x=>x.id===id);if(!c){console.error("Okänd kurs: "+id);return;}c.topics.push(...arr);};
+// Ersätter förklaringarna (fjärde värdet i varje fråga) för ett helt ämne: setExpl("kurs-id", {"Ämnesnamn":[förklaring1, ...]})
+window.setExpl=function(id,map){const c=COURSES.find(x=>x.id===id);if(!c)return;c.topics.forEach(t=>{const e=map[t.t];if(e)t.q.forEach((q,i)=>{if(e[i])q[3]=e[i];});});};
