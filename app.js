@@ -3,17 +3,39 @@ if(window.TOPICS&&window.TOPICS.length){COURSES[0].topics.push(...window.TOPICS)
 const A=document.getElementById('app');
 const h=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const nq=C=>C.topics.reduce((a,t)=>a+t.q.length,0);
+
+// Samlat quiz: slumpa N frågor per ämne varje gång quizet startas
+const shuffle=arr=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const perTopic=C=>C.combinedQuiz.perTopic||2;
+const combinedTopics=C=>C.topics.filter(x=>!(C.combinedQuiz.exclude||[]).includes(x.t));
+const combinedSize=C=>combinedTopics(C).reduce((a,x)=>a+Math.min(perTopic(C),x.q.length),0);
+const buildCombined=C=>shuffle(combinedTopics(C).flatMap(topic=>shuffle(topic.q).slice(0,perTopic(C))));
+// Tenta-test: slumpar frågor ur ett enda ämne (instuderingsfrågorna)
+const examTopic=C=>C.examQuiz&&C.topics.find(x=>x.t===C.examQuiz.topic);
+const examSize=C=>Math.min(C.examQuiz.size,examTopic(C).q.length);
+const buildExam=C=>shuffle(examTopic(C).q).slice(0,examSize(C));
+const needed=(size,pass)=>Math.floor((size*pass+99)/100);
+
 function home(){A.innerHTML='<h1>Projektledning – studieapp</h1><p class="mu">IT-projektledare. Välj kurs.</p>'+COURSES.map((c,i)=>`<div class="card"><b>${h(c.name)}, ${c.yhp} YHP</b><div class="mu">${c.topics.length?c.topics.length+' ämnen · '+nq(c)+' frågor':'Inga quiz ännu'}</div><div class="row"><button class="p" onclick="course(${i})">Öppna</button></div></div>`).join('');}
 
 function course(c) {
   const C = COURSES[c];
-  const total = nq(C);
   const combined = C.combinedQuiz;
   A.innerHTML = `<button onclick="home()">← Kurser</button><h2>${h(C.name)}, ${C.yhp} YHP</h2>`;
-  if (combined && total) {
+  if (combined && C.topics.length) {
+    const size = combinedSize(C);
+    const need = needed(size, combined.passPercent);
     A.innerHTML += `<div class="card"><b>${h(combined.t)}</b>
-      <div class="mu">${total} frågor · Godkänt från ${combined.passPercent} %</div>
+      <div class="mu">${size} slumpade frågor (${perTopic(C)} per ämne). Nya frågor varje gång.</div>
+      <div class="mu">Godkänt från ${combined.passPercent} %: minst ${need} av ${size} rätt</div>
       <div class="row"><button class="p" onclick="quiz(${c})">Starta samlat quiz</button></div></div>`;
+  }
+  if (C.examQuiz && examTopic(C)) {
+    const size = examSize(C), pass = C.examQuiz.passPercent;
+    A.innerHTML += `<div class="card"><b>${h(C.examQuiz.t)}</b>
+      <div class="mu">${size} slumpade frågor ur instuderingsfrågorna. Nya frågor varje gång.</div>
+      <div class="mu">Godkänt från ${pass} %: minst ${needed(size, pass)} av ${size} rätt</div>
+      <div class="row"><button class="p" onclick="quiz(${c},'tenta')">Starta tenta-test</button></div></div>`;
   }
   A.innerHTML += C.topics.length ? C.topics.map((x, i) => `<div class="card"><b>${i+1}. ${h(x.t)}</b>
     <div class="mu">${x.q.length} frågor</div><div class="row">
@@ -25,8 +47,9 @@ function course(c) {
 function quiz(c, t) {
   const C = COURSES[c];
   const combined = t === undefined;
-  const { t: title, passPercent } = combined ? C.combinedQuiz : C.topics[t];
-  const questions = combined ? C.topics.flatMap(topic => topic.q) : C.topics[t].q;
+  const exam = t === 'tenta';
+  const { t: title, passPercent } = combined ? C.combinedQuiz : exam ? C.examQuiz : C.topics[t];
+  const questions = combined ? buildCombined(C) : exam ? buildExam(C) : C.topics[t].q;
   const total = questions.length;
   const missed = [];
 
@@ -40,7 +63,7 @@ function quiz(c, t) {
         <div class="mu">Gräns för godkänt ${passPercent} %</div>`;
     }
     A.innerHTML = `<h2 tabindex="-1">${h(title)}</h2><div class="card"><b>Resultat: ${correct} / ${total}</b>${grade}</div>
-      <div class="row"><button class="p" id="retry-quiz">Försök igen</button>
+      <div class="row"><button class="p" id="retry-quiz">${combined || exam ? 'Nytt quiz med nya frågor' : 'Försök igen'}</button>
         ${missed.length ? `<button id="quiz-missed">Öva på missade kort (${missed.length})</button>` : ''}
         <button onclick="course(${c})">Alla ämnen</button></div>`;
     document.getElementById('retry-quiz').onclick = () => quiz(c, t);
